@@ -15,6 +15,7 @@
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 # ========================================================================
 
+import collections
 
 # This file contains some utility methods which can be used to stream data from
 # files in various ways. With philoyore, it is usually the case that we want
@@ -63,36 +64,42 @@ def words(f):
         for word in words:
             yield word
 
-# Generate a sequence of n-grams from the given file. For example, with an
+# A function for generating the n-grams from a file. For example, with an
 # n-value of 2 and a file that contains the text "to be or not to be", the
 # sequence of n-grams generated will be "to be", "be or", "or not", "not to",
 # and "to be". N-grams are returned as tuples with length n. 
-# The implementation leverages the words method in this same module.
-def ngrams(f, n):
+# The implementation can be thought of as "curried": the function takes a 
+# single argument, n, which is the length of each n-gram. A generator function
+# is returned that can be called with an open, readable file as its argument
+# which generates the sequence of n-grams from the file. In other words, the
+# returned generator is a closure. To actually generate the sequence of bigrams
+# from the file, you would have to call the returned generator as well:
+# for bigram in ngrams(2)(open(...)):
+#    ....
+# Because bigrams and trigrams are so common, this module also exports 
+# bigrams() and trigrams() methods:
+# for bigram in bigrams(open(...)):
+#    ....
+def ngrams(n):
     if n <= 0:
         raise RuntimeError, "ngrams: n must be a positive integer"
-    arr = []
-    for word in words(f):
-        arr.append(word)
-        if len(arr) > n:
-            del arr[0]
-            yield tuple(arr)
-        elif len(arr) == n:
-            yield tuple(arr)
-        else:
-            continue
+    def gen_ngrams(f):
+        d = collections.deque(maxlen=n)
+        for word in words(f):
+            d.append(word)
+            if len(d) == n:
+                yield tuple(d)
+            else:
+                continue
+    return gen_ngrams
 
 # Generate a sequence of bigrams from the given file. This is a convenience
 # function that simply calls ngrams.
-def bigrams(f):
-    for bigram in ngrams(f, 2):
-        yield bigram
+bigrams = ngrams(2)
 
 # Generate a sequence of trigrams from the given file. This is a convenience
 # function that simply calls ngrams.
-def trigrams(f):
-    for trigram in ngrams(f, 3):
-        yield trigram
+trigrams = ngrams(3)
 
 # The FileLikeString class is a convenience class that allows you to treat 
 # strings as files. This is useful because the methods in the philIO package
@@ -109,6 +116,10 @@ def trigrams(f):
 # The class does not expose any other methods besides `read` at this point in
 # time.
 class FilelikeString:
+    """A class for treating strings as files. While the Philoyore tools 
+    generally expect an open, readable file as their input, it is often useful
+    (primarily for debugging) to pass strings to these functions. This class
+    allows you to treat strings as files within the philIO modules."""
     def __init__(self, s):
         self.i = 0  # Where to start reading in the string next
         self.s = s 
