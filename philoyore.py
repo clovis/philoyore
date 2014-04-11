@@ -57,13 +57,62 @@ import collections
 def assign_indices(counter):
     return { k: v for v, k in enumerate(k for k in counter) }
 
+# Generate vectors corresponding to each feature stream in the input list. 
+# Each element of each vector is a floating-point value representing the
+# relative frequency of a particular feature; The meaning of that feature
+# can be yielded by the second return value of the function, which is a 
+# dictionary that maps features to indices (each index being an integer i
+# such that 0 <= i < n where n is the number of features). We currently
+# construct the feature vectors simply: we count all the features for each
+# stream, then normalize by dividing each feature in each vector by the total
+# for that feature across all vectors. In other words, for a feature-count x, 
+# we have
+#   x_normalized = x / sum(x for all feature vectors)
+# As an example, consider this set of feature streams:
+#   ["hello", "world"]
+#   ["goodbye", "world"]
+# ... then each of ["hello", "goodbye", "world"] will be assigned a feature
+# ID arbitrarily. Presume the ID's are assigned in that order; then the ID
+# dictionary that will be returned is
+#   { "hello" : 0, "goodbye" : 1, "world" : 2 }
+# Now that each feature has a number, we can construct the feature vectors:
+#   [1.0, 0.0, 0.5]
+#   [0.0, 1.0, 0.5]
+# This reflects that the first stream has every single occurrence of "hello"
+# and half of the occurrences of "world", and that the second stream has every
+# single occurrence of "goodbye" and half of the occurrences of "world". The
+# tuple that will be returned is the set of feature vectors and the ID's:
+#  ( [(FEATURE1), (FEATURE2)], (IDS) )
+# In the future, we will probably have to look to making this method more 
+# robust by allowing for especially common/uncommon features to be
+# removed or weighted more or less heavily; this will allow users to make
+# their calculations more precise or meaningful.
+# Note that the ID dict maps features to id's, and not the other way around.
+# If you want to quickly find the feature associated with a given ID,
+# flip the hash "inside out" (that is, make a hash that maps ID's to 
+# features from the output ID hash).
+def features(streams):
+    counts = [collections.Counter(s) for s in streams]
+    total_counts = sum(counts, collections.Counter())
+    ids = assign_indices(total_counts)
+    feature_vecs =  [np.zeros(len(ids), dtype=np.float64) for c in counts]
+    total_features = np.zeros(len(ids), dtype=np.float64)
+    for i in range(len(feature_vecs)):
+        for key in counts[i]:
+            feature_vecs[i][ids[key]] = counts[i][key]
+    for key in total_counts:
+        total_features[ids[key]] = total_counts[key]
+    for i in range(len(feature_vecs)):
+        feature_vecs[i] /= total_features
+    return (feature_vecs, ids)
+
 # Calculate the distance between two files according to a given distance 
 # algorithm and using the given streaming function. The distance algorithm
 # must accept two numpy vectors of the same length; whatever it returns
 # is directly returned to the caller. The stream function must accept a file
-# as an argument and return a stream of some kind of object; these objects
+# as an argument and return a stream of features; these objects
 # must be hashable and must behave reasonably when compared for equality (the
-# normal objects for generating words and n-grams, strings and tuples, satisfy
+# normal objects for representing words and n-grams, strings and tuples, satisfy
 # these criteria). Usually, you will use the methods in philIO (philIO.words,
 # philIO.bigrams, philIO.trigrams, philIO.ngrams(n)) for these purposes. Keep
 # in mind that if you want to use the generalized ngrams function, you do need
@@ -73,25 +122,8 @@ def assign_indices(counter):
 # directly:
 #   distance(f1, f2, streamfn = philIO.words)
 def distance(f1, f2, alg = scipy.spatial.distance.cosine, streamfn = pio.words):
-    # Count all terms in input files
-    c1 = collections.Counter(streamfn(f1))
-    c2 = collections.Counter(streamfn(f2))
-    total_count = c1 + c2 
-    # Assign unique integer ids
-    ids = assign_indices(total_count)
-    # Populate feature vectors with counts
-    v1 = np.zeros(len(ids), dtype=np.float64)
-    v2 = np.zeros(len(ids), dtype=np.float64)
-    total_v = np.zeros(len(ids), dtype=np.float64)
-    for c, v in [[c1,v1], [c2,v2], [total_count, total_v]]:
-        for key in c:
-            v[ids[key]] = c[key]
-    # Normalize. We do this by dividing each feature by the total count so that
-    # v1[n] + v2[n] for any n is 1.0.
-    v1 = v1 / total_v
-    v2 = v2 / total_v
-    # Do a little garbage collection 
-    del c1, c2, total_count, ids, total_v
-    # Actually compute the distance
+    ([v1, v2], ids) = features([streamfn(f1), streamfn(f2)])
+    # We don't care about the id's so we can free the space used by them
+    del ids
     return alg(v1, v2)
     
