@@ -57,6 +57,32 @@ import collections
 def assign_indices(counter):
     return { k: v for v, k in enumerate(k for k in counter) }
 
+# This is a catch-all function for reducing features in a dataset. Two
+# arguments are accepted: 1) a list of the feature arrays, and 2) a 
+# dictionary of "options" which allows the caller to choose how to 
+# reduce the features in the dataset. Possible options are:
+# - minfreq: Minimum proportion of vectors a feature must be in;
+# - maxfreq: Maximum proportion of vectors a feature must be in;
+# - minocc: Minimum number of occurrences a feature must have in the
+#           entire dataset in order to be retained;
+# - maxocc: Maximum number of occurrences a feature must have in the entire 
+#           dataset in order to be retained.
+# More options may be added later. 
+# The return value is a 3-tuple, the elements of which are:
+# 1) The new vectors mapped to the lower-dimensional space in a list;
+# 2) The sum of all the vectors, which can be used for further computations/
+#    normalizations;
+# 3) A vector of integers that can be used to determine which features were
+#    deleted. The vector will be the length of the vectors that were passed
+#    into this function; the elements of the vector are the "new" ID's
+#    of those vectors, which can be used for reporting. As a special case,
+#    if no vectors are deleted, then None will be returned in this place.
+# Note that this is not a function for general feature reduction (e.g.
+# PCA). That step may come later, after the more low-level feature-
+# deletion phase.
+def delete_features(features, opts):
+    pass
+
 # Generate vectors corresponding to each feature stream in the input list. 
 # Each element of each vector is a floating-point value representing the
 # relative frequency of a particular feature; The meaning of that feature
