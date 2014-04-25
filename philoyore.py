@@ -42,9 +42,11 @@
 # 6) Compute the distance with the selected distance algorithm.
 
 import philIO as pio
+import philutil as putil
 import numpy as np
 import scipy, scipy.spatial
 import collections
+import sets
 
 # Given a Counter object (from the collections package), construct a hash
 # that maps each unique key to a unique integer ID number. For example, the
@@ -68,20 +70,44 @@ def assign_indices(counter):
 # - maxocc: Maximum number of occurrences a feature must have in the entire 
 #           dataset in order to be retained.
 # More options may be added later. 
-# The return value is a 3-tuple, the elements of which are:
+# The return value is a 2-tuple, the elements of which are:
 # 1) The new vectors mapped to the lower-dimensional space in a list;
-# 2) The sum of all the vectors, which can be used for further computations/
-#    normalizations;
-# 3) A vector of integers that can be used to determine which features were
-#    deleted. The vector will be the length of the vectors that were passed
-#    into this function; the elements of the vector are the "new" ID's
-#    of those vectors, which can be used for reporting. As a special case,
-#    if no vectors are deleted, then None will be returned in this place.
+# 2) A vector of integers that can be used to determine which features were
+#    deleted. The vector will be the length of the feature-deleted feature 
+#    vectors returned by this function; each element is a pointer to the
+#    index that feature had in the non-feature-deleted version of the feature
+#    vector. For example, if you pass in a set of feature vectors of length 5,
+#    and this function deletes every feature but the 2nd, then this return
+#    value would be [1]; that is, the feature vectors that will be returned will
+#    be of length 1, and that element is the 2nd element of the original 
+#    vectors. 
 # Note that this is not a function for general feature reduction (e.g.
 # PCA). That step may come later, after the more low-level feature-
 # deletion phase.
 def delete_features(features, opts):
-    pass
+    # Some setup
+    indices = range(len(features[0]))
+    if 'minocc' in opts or 'maxocc' in opts:
+        sum_features = putil.sum(features)
+    if 'minfreq' in opts or 'maxfreq' in opts:
+        proportion_features = putil.proportions(features)
+
+    # Filter out the unwanted features
+    if 'minocc' in opts:
+        indices = filter(lambda i: sum_features[i] >= opts['minocc'], indices)
+    if 'maxocc' in opts:
+        indices = filter(lambda i: sum_features[i] <= opts['maxocc'], indices)
+    if 'minfreq' in opts:
+        indices = filter(lambda i: proportion_features[i] >= opts['minfreq'],
+                         indices)
+    if 'maxfreq' in opts:
+        indices = filter(lambda i: proportion_features[i] <= opts['maxfreq'],
+                         indices)
+    
+    # Now, indices is an ordered collection of the features we want to keep.
+    # We'll actually perform the transformation here.
+    return (map(lambda v: v[indices], features), indices)
+        
 
 # Generate vectors corresponding to each feature stream in the input list. 
 # Each element of each vector is a floating-point value representing the
