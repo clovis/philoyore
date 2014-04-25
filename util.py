@@ -21,7 +21,7 @@
 import numpy as np
 
 # Given a list of feature vectors, return their sum.
-def sum(a):
+def total(a):
     return np.array(a).sum(axis=0)
 
 # Given a list of feature vectors, return a vector of proportions of the same
