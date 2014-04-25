@@ -15,14 +15,17 @@
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 # ========================================================================
 
-from philoyore.feats.gen import features
+from philoyore.feats.gen import features, normalize
 import scipy, scipy.spatial
 
 # Calculate the distance between two streams according to a given distance 
 # algorithm. The distance algorithm must accept two numpy vectors of the same 
 # length; whatever it returns is directly returned to the caller. 
+# This function works by mapping to a feature set, normalizing the two 
+# resultant feature vectors, and calculating the result.
 def dist(s1, s2, alg = scipy.spatial.distance.cosine):
-    ([v1, v2], ids) = features([s1, s2])
+    (vs, ids) = features([s1, s2])
     # We don't care about the id's so we can free the space used by them
     del ids
-    return alg(v1, v2)
+    normalize(vs)
+    return alg(vs[0], vs[1])
