@@ -29,7 +29,7 @@ import philoyore.util as putil
 # quickly find the feature associated with a given ID, flip the hash 
 # "inside out" (that is, make a hash that maps ID's to features from the 
 # output ID hash).
-def features(streams):
+def raw_features(streams):
     def assign_indices(counter):
         return { k: v for v, k in enumerate(k for k in counter) }
     counts = [collections.Counter(s) for s in streams]
@@ -82,6 +82,8 @@ def normalize(features):
 def delete_features(features, opts):
     # Some setup
     indices = range(len(features[0]))
+    if len(opts) == 0:
+        return (features, indices)
     if 'minocc' in opts or 'maxocc' in opts:
         sum_features = putil.total(features)
     if 'minfreq' in opts or 'maxfreq' in opts:
@@ -102,3 +104,17 @@ def delete_features(features, opts):
     # Now, indices is an ordered collection of the features we want to keep.
     # We'll actually perform the transformation here.
     return (map(lambda v: v[indices], features), indices)
+
+def features(streams, delete = {}, norm = True):
+    features, ids = raw_features(streams)
+    features, id_map = delete_features(features, delete)
+    if norm:
+        normalize(features)
+    new_ids = {}
+    for key, value in ids.items():
+        try:
+            index = id_map.index(value)
+            new_ids[key] = index
+        except ValueError:
+            continue
+    return (features, new_ids)

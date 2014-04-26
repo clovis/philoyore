@@ -27,5 +27,4 @@ def dist(s1, s2, alg = scipy.spatial.distance.cosine):
     (vs, ids) = features([s1, s2])
     # We don't care about the id's so we can free the space used by them
     del ids
-    normalize(vs)
     return alg(vs[0], vs[1])
