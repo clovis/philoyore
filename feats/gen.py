@@ -105,6 +105,16 @@ def delete_features(features, opts):
     # We'll actually perform the transformation here.
     return (map(lambda v: v[indices], features), indices)
 
+# This method is a high-level method for converting streams into feature 
+# vectors. We call raw_features to get the simple feature vectors, call
+# delete_features (if a delete-option dictionary is supplied), and normalize
+# (unless we're asked not to normalize by the caller). This function has a 
+# high-level declarative bent; callers should generally use this function
+# to convert streams to feature vectors, rather than the lower-level (more
+# error-prone) methods.
+# TODO Look at other strategies for feature-deletion and normalizing and 
+# implement them in this function. Consider other parameters that may need
+# to be considered in this function (e.g. PCA?)
 def features(streams, delete = {}, norm = True):
     features, ids = raw_features(streams)
     features, id_map = delete_features(features, delete)

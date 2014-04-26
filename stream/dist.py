@@ -15,7 +15,7 @@
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 # ========================================================================
 
-from philoyore.feats.gen import features, normalize
+from philoyore.feats.gen import features
 import scipy, scipy.spatial
 
 # Calculate the distance between two streams according to a given distance 
