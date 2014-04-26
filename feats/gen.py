@@ -43,17 +43,6 @@ def raw_features(streams):
             feature_vecs[i][ids[key]] = counts[i][key]
     return (feature_vecs, ids)
 
-# Given a set of feature vectors, statefully normalize the vectors. We 
-# currently normalize by totaling the features and dividing each
-# element by the total for that element (so the minimum normalized feature 
-# value is 0.0 and the maximum is 1.0 and all instances of a feature sum to
-# 1.0). 
-# TODO For robustness, look at normalization in different ways. 
-def normalize(features):
-    total_features = putil.total(features)
-    for i in range(len(features)):
-        features[i] /= total_features
-
 # This is a catch-all function for reducing features in a dataset. Two
 # arguments are accepted: 1) a list of the feature arrays, and 2) a 
 # dictionary of "options" which allows the caller to choose how to 
@@ -105,6 +94,17 @@ def delete_features(features, opts):
     # We'll actually perform the transformation here.
     return (map(lambda v: v[indices], features), indices)
 
+# Given a set of feature vectors, statefully normalize the vectors. We 
+# currently normalize by totaling the features and dividing each
+# element by the total for that element (so the minimum normalized feature 
+# value is 0.0 and the maximum is 1.0 and all instances of a feature sum to
+# 1.0). 
+# TODO For robustness, look at normalization in different ways. 
+def normalize(features):
+    total_features = putil.total(features)
+    for i in range(len(features)):
+        features[i] /= total_features
+
 # This method is a high-level method for converting streams into feature 
 # vectors. We call raw_features to get the simple feature vectors, call
 # delete_features (if a delete-option dictionary is supplied), and normalize
@@ -128,3 +128,18 @@ def features(streams, delete = {}, norm = True):
         except ValueError:
             continue
     return (features, new_ids)
+
+# TODO: Currently, we use the raw_features function to convert an array of 
+#       streams into a corresponding array of feature vectors, and then pass
+#       to the other functions; in other words, the dataflow is sort of like
+#         raw_features (convert to feature vectors) -> 
+#         delete_features (convert to tinier feature vectors) ->
+#         normalize (convert to normalized feature vectors)
+#       This setup is fine, EXCEPT I have doubts about the first step of the
+#       dataflow (i.e. converting a stream array into an array of feature
+#       vectors). raw_features should accept a great number of input streams,
+#       and it doesn't seem like a computer should have, for example, 5,000
+#       file handles open at once. Making the "stream" objects the function
+#       accepts Counter objects (from the collections module) would probably
+#       fix this issue, though there is probably some sort of tradeoff between
+#       memory usage and disk usage that we may need to investigate.
