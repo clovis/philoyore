@@ -24,6 +24,11 @@ class CondensedMatrixRow:
         self.cdm = cdm
     def __getitem__(self, j):
         return self.cdm.get(self.i, j)
+    def __len__(self):
+        return len(self.cdm)
+    def __iter__(self):
+        for j in range(len(self.cdm)):
+            yield self.cdm.get(self.i, j)
 
 # A condensed matrix that can be accessed in the usual way (cdm[i][j], 
 # or cdm.get(i,j)). Can be transformed into a normal square matrix with the
@@ -36,7 +41,15 @@ class CondensedDistanceMatrix:
         self.cdm = cdm
     def __getitem__(self, key):
         return CondensedMatrixRow(key, self)
+    def __len__(self):
+        return self.n
+    def __iter__(self):
+        for i in range(self.n):
+            yield CondensedMatrixRow(i, self)
     def get(self, i, j):
-        return cdm[(self.n * j) - (j * (j+1) / 2) + i - j - 1]
+        if i == j:
+            return 0.0
+        else:
+            return self.cdm[(self.n * j) - (j * (j+1) / 2) + i - j - 1]
     def squareform(self):
         return squareform(self.cdm)

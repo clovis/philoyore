@@ -48,15 +48,17 @@ def words(f):
     buffer_size = 1024
     next_buf = ""
     while True:
-        current_buf = next_buf + f.read(buffer_size)
+        current_input = f.read(buffer_size) 
+        current_buf = next_buf + current_input
         if len(current_buf) == 0:
             break
         words = current_buf.split()
-        # If the last character in the buffer is whitespace, we can be sure
+        # If the last character in the buffer is whitespace, or we've finished
+        # streaming from the file, we can be sure
         # the last word in the `words` array is complete. If it is not, we 
         # cannot, so we remove it from the `words` array and add it to the next
         # buffer so it can be processed at the next iteration.
-        if current_buf[-1].isspace():
+        if current_buf[-1].isspace() or len(current_input) == 0:
             next_buf = ""
         else:
             next_buf = words[-1]

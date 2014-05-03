@@ -57,12 +57,12 @@ class FeatureSet:
     # instantiation.
     def __init__(self, streamset, **kwargs):
         self.id_to_feature = list(k for k in streamset.total)
-        self.feature_to_id = { v : k for k, v in enumerate(id_to_feature) }
+        self.feature_to_id = { v : k for k, v in enumerate(self.id_to_feature) }
         self.feature_vecs = np.zeros((len(streamset), len(self.id_to_feature)))
         for i in range(len(self)):
             for feature in streamset[i]:
                 self.feature_vecs[i][self.feature_to_id[feature]] = \
-                    streamset[i][key]
+                    streamset[i][feature]
         self.normalized = False
         self.refs = list(range(len(streamset)))
         self.total = None
@@ -128,6 +128,7 @@ class FeatureSet:
         self.find_total()
         for i in range(len(self)):
             self.feature_vecs[i] /= self.total
+        self.normalized = True
 
     # This method allows you to do some high-level operations on feature 
     # sets, including feature deletion and normalization. Currently, you can

@@ -16,7 +16,7 @@
 # ========================================================================
 
 import collections
-from philoyore.io import words, FileLikeString
+from philoyore.io import words, FilelikeString
 from philoyore.features import FeatureSet
 
 # A StreamSet represents a collection of "streams", a "stream" being data from
@@ -34,7 +34,7 @@ class StreamSet:
         if len(streams) <= 0:
             raise RuntimeError, "The input stream list must not be empty"
         self.streams = streams
-        self.total = sum(streams, collections.Counter)
+        self.total = sum(streams, collections.Counter())
         self.names = names if names is not None \
                      else [None for _ in range(len(self))]
     def __len__(self):
@@ -74,7 +74,7 @@ def stream_from_file(f, streamfn = words):
     return collections.Counter(streamfn(f))
 
 def stream_from_string(s, streamfn = words):
-    return stream_from_file(FileLikeString(s), streamfn)
+    return stream_from_file(FilelikeString(s), streamfn)
 
 def stream_from_dict(d):
     return collections.Counter(d)
