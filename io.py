@@ -33,18 +33,21 @@ import collections
 
 # Generate all the words of the given file (here, a "word" is defined as
 # a sequence of characters surrounded on either side by spaces). Whitespace
-# is stripped out. We do this by reading a smaller subsection of the file into
-# memory and processing the in-memory buffer manually. There is a corner
-# case to be aware of: it is rather likely that we will read in only part of
-# the last word in the buffer. We correct this by saving the last-read word
-# if we are uncertain it is complete and processing it on the next iteration.
+# is stripped out. 
+# Pass a function as the `mapping` parameter in order to map a function over
+# your words before you receive them. For example, the following call:
+# words(f, lambda s: string.translate(s, None, string.punctuation))
+# ... removes all punctuation from all words as they are generated. Meanwhile:
+# words(f, lambda s: s[0])
+# ... returns only the first character of each word. This is a powerful
+# mechanism that can be used to "hook in" a lemmatization utility.
 # In the interest of future optimizations, setting the read size to be a 
 # greater value than `buffer_size`  would result in fewer calls to the 
 # system-level read function in exchange for more memory used at runtime. 
 # Since I have a feeling IO costs will be non-trivial in the runtime of 
 # Philoyore proper, it will be an interesting exercise to mess with that value 
 # to see how performance changes.
-def words(f):
+def words(f, mapping = None):
     buffer_size = 1024
     next_buf = ""
     while True:
@@ -53,6 +56,8 @@ def words(f):
         if len(current_buf) == 0:
             break
         words = current_buf.split()
+        if mapping is not None:
+            words = map(mapping, words)
         # If the last character in the buffer is whitespace, or we've finished
         # streaming from the file, we can be sure
         # the last word in the `words` array is complete. If it is not, we 
@@ -85,9 +90,9 @@ def words(f):
 def ngrams(n):
     if n <= 0:
         raise RuntimeError, "ngrams: n must be a positive integer"
-    def gen_ngrams(f):
+    def gen_ngrams(f, mapping = None):
         d = collections.deque(maxlen=n)
-        for word in words(f):
+        for word in words(f, mapping):
             d.append(word)
             if len(d) == n:
                 yield tuple(d)

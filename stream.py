@@ -24,7 +24,7 @@ from philoyore.features import FeatureSet
 # input stream is converted into a collection of feature-count pairs, where a
 # "feature" is usually a word, lemma, n-gram, n-lemma, and so on and so forth.
 # The stream set can be manipulated at a high level by adding or removing
-# features from it; we use the collections.Counter object in the Python standard
+# streams from it; we use the collections.Counter object in the Python standard
 # library to make this rather easy.
 class StreamSet:
     # The initializer accepts a list of `streams` which are used to populate the
@@ -66,41 +66,41 @@ class StreamSet:
     def clone(self):
         return StreamSet(self.streams[:], names = self.names[:])
 
-def stream_from_filename(fname, streamfn = words):
+def stream_from_filename(fname, streamfn = words, **kwargs):
     f = open(fname, 'r')
-    return stream_from_file(f, streamfn)
+    return stream_from_file(f, streamfn, **kwargs)
 
-def stream_from_file(f, streamfn = words):
-    return collections.Counter(streamfn(f))
+def stream_from_file(f, streamfn = words, **kwargs):
+    return collections.Counter(streamfn(f, **kwargs))
 
-def stream_from_string(s, streamfn = words):
-    return stream_from_file(FilelikeString(s), streamfn)
+def stream_from_string(s, streamfn = words, **kwargs):
+    return stream_from_file(FilelikeString(s), streamfn, **kwargs)
 
 def stream_from_dict(d):
     return collections.Counter(d)
 
-def set_from_filenames(fnames, streamfn = words):
-    return StreamSet([stream_from_filename(f, streamfn) for f in fnames],
-                     names = fnames)
+def set_from_filenames(fnames, streamfn = words, **kwargs):
+    return StreamSet([stream_from_filename(f, streamfn, **kwargs) \
+                          for f in fnames], names = fnames)
 
-def set_from_files(fs, streamfn = words):
+def set_from_files(fs, streamfn = words, **kwargs):
     def getname(f):
         try:
             name = f.name
         except AttributeError:
             name = None
         return name
-    return StreamSet([stream_from_file(f, streamfn) for f in fs],
+    return StreamSet([stream_from_file(f, streamfn, **kwargs) for f in fs],
                      names = [getname(f) for f in fs])
 
-def set_from_strings(ss, streamfn = words):
+def set_from_strings(ss, streamfn = words, **kwargs):
     cutlen = 15
     def processword(s):
         if len(s) <= cutlen:
             return s
         else:
             return s[0:15] + '...'
-    return StreamSet([stream_from_string(s, streamfn) for s in ss],
+    return StreamSet([stream_from_string(s, streamfn, **kwargs) for s in ss],
                      names = [processword(s) for s in ss])
 
 def set_from_dicts(ds):
