@@ -15,10 +15,10 @@
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 # ========================================================================
 
-# This is a junk-drawer file for holding some utilities for working with
-# feature vectors.
+# This is a junk-drawer file with some boring utilities.
 
 import numpy as np
+import scipy.spatial.distance as dist
 
 # Given a list of feature vectors, return their sum.
 def total(a):
@@ -44,3 +44,19 @@ def proportions(a):
                 occs += 1
         res[i] = float(occs) / float(len(a))
     return res
+
+# Return the Scipy distance function corresponding to the given string,
+# raising a RuntimeError if no such function was found. Returns the input
+# parameter if it is not a string.
+def distance(s):
+    if not isinstance(s, str):
+        return s
+    h = set(['braycurtis', 'canberra', 'chebyshev', 'cityblock', 'correlation',
+             'cosine', 'dice', 'euclidean', 'hamming', 'jaccard', 'kulsinki',
+             'matching', 'rogerstainimoto', 'russelrao', 'sokalsneath',
+             'sqeuclidean', 'yule'])
+    if s in h:
+        return getattr(dist, s)
+    else:
+        raise RuntimeError, 'No such distance function ' + s + ' found'
+
