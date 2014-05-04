@@ -1,3 +1,3 @@
-import philoyore.io, philoyore.stream, philoyore.features
+import philoyore.io, philoyore.corpus, philoyore.features
 
-__all__ = ['io', 'stream', 'features']
+__all__ = ['io', 'corpus', 'features']

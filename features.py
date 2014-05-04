@@ -33,12 +33,6 @@ import philoyore.dist as pdist
 #                  above attribute; it maps features to their feature indices.
 # - feature_vecs: The list of feature vectors proper. The feature vectors
 #                 are just numpy arrays.
-# - normalized: A boolean value that is True if the feature set is normalized
-#               and False otherwise. This will be set to True if you call the
-#               normalize() method; it is conceivable some operations may
-#               require normalization before you can use them. If you call
-#               the normalize() method when this attribute is True, the 
-#               normalization will be skipped. 
 # - refs: This is an array that bridges the gap between the FeatureSet and
 #         the Corpus the FeatureSet is derived from. The length of this
 #         list is the length of the feature_vecs list; if refs[i] = j, that
@@ -63,9 +57,8 @@ class FeatureSet:
             for feature in corpus[i]:
                 index = self.feature_to_id[feature]
                 self.feature_vecs[i][index] = corpus[i][feature]
-        self.normalized = False
         self.refs = list(range(len(corpus)))
-        self.total = None
+        self.clear_cache()
         self.process(kwargs)
 
     def __len__(self):
@@ -94,7 +87,7 @@ class FeatureSet:
         if 'minocc' in opts or 'maxocc' in opts:
             self.find_total()
         if 'minfreq' in opts or 'maxfreq' in opts:
-            prop_features = putil.proportions(self.feature_vecs)
+            self.find_props()
         
         if 'minocc' in opts:
             indices = filter(lambda i: self.total[i] >= opts['minocc'], 
@@ -103,10 +96,10 @@ class FeatureSet:
             indices = filter(lambda i: self.total[i] <= opts['maxocc'],
                              indices)
         if 'minfreq' in opts:
-            indices = filter(lambda i: prop_features[i] >= opts['minfreq'],
+            indices = filter(lambda i: self.props[i] >= opts['minfreq'],
                              indices)
         if 'maxfreq' in opts:
-            indices = filter(lambda i: prop_features[i] <= opts['maxfreq'],
+            indices = filter(lambda i: self.propsx[i] <= opts['maxfreq'],
                              indices)
         
         to_delete = set(range(len(self[0]))) - set(indices)
@@ -115,30 +108,39 @@ class FeatureSet:
         self.feature_vecs = np.delete(self.feature_vecs, list(to_delete), 1)
         self.id_to_feature = list(self.id_to_feature[i] for i in indices)
         self.feature_to_id = { v : k for k, v in enumerate(id_to_feature) }
-        self.total = None
+        self.clear_cache()
 
-    # Statefully normalize the feature vectors. We currently normalize by 
-    # totaling the features and dividing each element by the total for that 
-    # element (so the minimum normalized feature value is 0.0 and the maximum 
-    # is 1.0 and all instances of a feature sum to 1.0). 
-    # TODO For robustness, look at normalization in different ways.
-    def normalize(self):
-        if self.normalized:
-            return
-        self.find_total()
-        for i in range(len(self)):
-            self.feature_vecs[i] /= self.total
-        self.normalized = True
+    # Statefully normalize the feature vectors according to the given method
+    # string.
+    def normalize(self, method):
+        if method == 'simple':
+            self.find_total()
+            for i in range(len(self)):
+                self.feature_vecs[i] /= self.total
+            self.clear_cache()
+        elif method == 'tf-idf' or method == 'tf-idf-log2' or \
+                method == 'tf-idf-nolog':
+            self.find_props()
+            idf_fun = { 'tf-idf' : np.log, 
+                        'tf-idf-log2' : np.log,
+                        'tf-idf-nolog' : lambda x: x }[method]
+            idf = idf_fun(1.0 / self.props)
+            for i in range(len(self)):
+                self.feature_vecs[i] *= idf
+            self.clear_cache()
+        elif method == 'none':
+            pass
+        else:
+            raise RuntimeError, 'Unknown normalization method ' + method 
 
     # This method allows you to do some high-level operations on feature 
     # sets, including feature deletion and normalization. Currently, you can
     # invoke feature deletion from this method, as well as normalization.
     # As the methods for feature/dataset reduction become more robust, so
     # the interface in this function must change as well.
-    def process(self, delete = {}, norm = True):
+    def process(self, delete = {}, norm = 'none'):
         self.delete_features(delete)
-        if norm:
-            self.normalize()
+        self.normalize(norm)
 
     # Find the distance between the two feature vectors at the two given
     # indices with the given algorithm (which may be a string or a function;
@@ -178,3 +180,13 @@ class FeatureSet:
             return
         else:
             self.total = putil.total(self.feature_vecs)
+
+    def find_props(self, force = False):
+        if self.props is not None and force is False:
+            return
+        else:
+            self.props = putil.proportions(self.feature_vecs)
+
+    def clear_cache(self):
+        self.total = None
+        self.props = None
