@@ -30,13 +30,11 @@ class Corpus:
     # The initializer accepts a list of `streams` which are used to populate the
     # streamset. Other constructor functions in this module can be used
     # to populate StreamSets in different ways. 
-    def __init__(self, streams, names = None):
+    def __init__(self, streams):
         if len(streams) <= 0:
             raise RuntimeError, "The input stream list must not be empty"
         self.streams = streams
         self.total = sum(streams, collections.Counter())
-        self.names = names if names is not None \
-                     else [None for _ in range(len(self))]
     def __len__(self):
         return len(self.streams)
     def __getitem__(self, key):
@@ -44,7 +42,6 @@ class Corpus:
     def __delitem__(self, key):
         deleted = self.streams[key]
         del self.streams[key]
-        del self.names[key]
         if isinstance(delete, list):
             for d in deleted:
                 self.total -= d
@@ -52,17 +49,15 @@ class Corpus:
             self.total -= deleted
     def __iter__(self):
         return iter(self.streams)
-    def append(self, stream, name = None):
+    def append(self, stream):
         self.streams.append(stream)
-        self.names.append(name)
         self.total += stream
     def __add__(self, other):
-        return Corpus(self.streams + other.streams, 
-                      names = self.names + other.names)
+        return Corpus(self.streams + other.streams)
     def features(self, **kwargs):
         return FeatureSet(self, **kwargs)
     def clone(self):
-        return Corpus(self.streams[:], names = self.names[:])
+        return Corpus(self.streams[:])
 
 def stream_from_filename(fname, streamfn = words, **kwargs):
     f = open(fname, 'r')
@@ -79,7 +74,7 @@ def stream_from_dict(d):
 
 def corpus_from_filenames(fnames, streamfn = words, **kwargs):
     return Corpus([stream_from_filename(f, streamfn, **kwargs) \
-                          for f in fnames], names = fnames)
+                          for f in fnames])
 
 def corpus_from_files(fs, streamfn = words, **kwargs):
     def getname(f):
@@ -88,8 +83,7 @@ def corpus_from_files(fs, streamfn = words, **kwargs):
         except AttributeError:
             name = None
         return name
-    return Corpus([stream_from_file(f, streamfn, **kwargs) for f in fs],
-                     names = [getname(f) for f in fs])
+    return Corpus([stream_from_file(f, streamfn, **kwargs) for f in fs])
 
 def corpus_from_strings(ss, streamfn = words, **kwargs):
     cutlen = 15
@@ -98,8 +92,7 @@ def corpus_from_strings(ss, streamfn = words, **kwargs):
             return s
         else:
             return s[0:15] + '...'
-    return Corpus([stream_from_string(s, streamfn, **kwargs) for s in ss],
-                     names = [processword(s) for s in ss])
+    return Corpus([stream_from_string(s, streamfn, **kwargs) for s in ss])
 
 def corpus_from_dicts(ds):
     return Corpus([stream_from_dict(d) for d in ds])
