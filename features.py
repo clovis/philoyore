@@ -81,7 +81,9 @@ class FeatureSet:
     # reflect the changes that were made.
     # TODO: Consider other methods of feature deletion.
     def delete_features(self, opts):
-        indices = range(len(self[0]))
+        initial_length = len(self[0])
+        indices = range(initial_length)
+        # Return immediately if there are no options
         if len(opts) == 0:
             return
         if 'minocc' in opts or 'maxocc' in opts:
@@ -102,7 +104,10 @@ class FeatureSet:
             indices = filter(lambda i: self.propsx[i] <= opts['maxfreq'],
                              indices)
         
-        to_delete = set(range(len(self[0]))) - set(indices)
+        # Return immediately if no features turned out to be deleted
+        if len(indices) == initial_length:
+            return
+        to_delete = set(range(initial_length)) - set(indices)
         # Here, the 1 means we want to delete those columns that are in the
         # list of elements to_delete
         self.feature_vecs = np.delete(self.feature_vecs, list(to_delete), 1)
@@ -111,7 +116,12 @@ class FeatureSet:
         self.clear_cache()
 
     # Statefully normalize the feature vectors according to the given method
-    # string.
+    # string. Accepted methods include 'simple, 'tf-idf', 'tf-idf-log2', 
+    # 'tf-idf-nolog', and 'none'. 'tf-idf' takes the natural logarithm of
+    # its idf values, and 'tf-idf-nolog' doesn't take the log of the idf.
+    # 'simple' just divides each of the features in each vector by the
+    # sum of each feature, scaling each feature to some number between 0.0
+    # and 1.0.
     def normalize(self, method):
         if method == 'simple':
             self.find_total()
