@@ -72,6 +72,9 @@ def doc_from_string(s, streamfn = words, **kwargs):
 def doc_from_dict(d):
     return collections.Counter(d)
 
+def doc_from_stream(s):
+    return collections.Counter(s)
+
 def corpus_from_filenames(fnames, streamfn = words, **kwargs):
     return Corpus([doc_from_filename(f, streamfn, **kwargs) \
                           for f in fnames])
@@ -84,3 +87,6 @@ def corpus_from_strings(ss, streamfn = words, **kwargs):
 
 def corpus_from_dicts(ds):
     return Corpus([doc_from_dict(d) for d in ds])
+
+def corpus_from_streams(ss):
+    return Corpus([doc_from_stream(s) for s in ss])
