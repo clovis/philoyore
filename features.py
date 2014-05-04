@@ -72,12 +72,13 @@ class FeatureSet:
     def clone(self):
         new = copy.copy(self)
         new.feature_vecs = np.copy(new.feature_vecs)
+        return new
 
     # A catch-all method for reducing features in a dataset. The argument is
     # a dictionary of "options" which allows the caller to choose how to
     # reduce the features in the dataset. Possible options are:
     # - minfreq: Minimum proportion of vectors a feature must be in (between 0.0
-    #            and 1.0
+    #            and 1.0)
     # - maxfreq: Maximum proportion of vectors a feature must be in
     # - minocc: Minimum total "magnitude" of a feature in the entire dataset
     # - maxocc: Maximum total magnitude of a feature in the entire dataset
@@ -196,12 +197,17 @@ class FeatureSet:
         else:
             self.total = putil.total(self.feature_vecs)
 
+    # Find the "proportions" of all features and store the resultant vector
+    # in self.props. self.props[0] will be the proportion of feature vectors the
+    # first feature is nonzero in, and so on and so forth.
     def find_props(self, force = False):
         if self.props is not None and force is False:
             return
         else:
             self.props = putil.proportions(self.feature_vecs)
 
+    # If the self.feature_vecs array is statefully updated, call this method to
+    # clear the cache (which contains some precomputed useful values.
     def clear_cache(self):
         self.total = None
         self.props = None
