@@ -44,8 +44,6 @@ import copy
 # - total: The sum of all the feature vectors, which is commonly needed 
 #          information for a number of operations. This is a cached value:
 #          it may be None if the total has not been computed by the library.
-# TODO: Look at strategies for reducing the number of docs in a feature
-#       set (or maybe that should be done at the Corpus level?)
 class FeatureSet:
     # The initializer is a Corpus; command-line arguments are also accepted
     # that can be used to perform certain operations at the time of 

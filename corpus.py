@@ -36,10 +36,8 @@ class Corpus:
             raise RuntimeError, "The input document list must not be empty"
         self.docs = docs
         self.total = sum(docs, Document())
-    def __len__(self):
-        return len(self.docs)
-    def __getitem__(self, key):
-        return self.docs[key]
+    def __add__(self, other):
+        return Corpus(self.docs + other.docs)
     def __delitem__(self, key):
         deleted = self.docs[key]
         del self.docs[key]
@@ -48,17 +46,22 @@ class Corpus:
                 self.total -= d
         else:
             self.total -= deleted
+    def __getitem__(self, key):
+        return self.docs[key]
     def __iter__(self):
         return iter(self.docs)
+    def __len__(self):
+        return len(self.docs)
     def append(self, doc):
         self.docs.append(doc)
         self.total += doc
-    def __add__(self, other):
-        return Corpus(self.docs + other.docs)
-    def features(self, **kwargs):
-        return FeatureSet(self, **kwargs)
     def clone(self):
         return Corpus(self.docs[:])
+    def features(self, **kwargs):
+        return FeatureSet(self, **kwargs)
+    def filter(self, fn):
+        self.docs = filter(fn, self.docs)
+        self.total = sum(self.docs, Document())
     @staticmethod
     def from_filenames(fnames, streamfn = words, info = None, **kwargs):
         info = info if info is not None else fnames
