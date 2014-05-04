@@ -15,7 +15,7 @@
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 # ========================================================================
 
-from scipy.spatial.distance import squareform
+import scipy.spatial.distance as dist
 
 # Represents a single row of a condensed matrix; this is an opaque class.
 class CondensedMatrixRow:
@@ -52,7 +52,7 @@ class CondensedDistanceMatrix:
         else:
             return self.cdm[(self.n * j) - (j * (j+1) / 2) + i - j - 1]
     def squareform(self):
-        return squareform(self.cdm)
+        return dist.squareform(self.cdm)
 
 # Return the Scipy distance function corresponding to the given string,
 # raising a RuntimeError if no such function was found. Returns the input
