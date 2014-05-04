@@ -20,6 +20,7 @@ import numpy as np
 import philoyore.util as putil
 import scipy.spatial.distance as dist
 import philoyore.dist as pdist
+import copy
 
 # A FeatureSet, like a Corpus, is a collection of objects representing the
 # frequencies of features in streams; however, the feature set is a sequence
@@ -67,6 +68,10 @@ class FeatureSet:
         return self.feature_vecs[key]
     def __iter__(self):
         return iter(self.feature_vecs)
+
+    def clone(self):
+        new = copy.copy(self)
+        new.feature_vecs = np.copy(new.feature_vecs)
 
     # A catch-all method for reducing features in a dataset. The argument is
     # a dictionary of "options" which allows the caller to choose how to
