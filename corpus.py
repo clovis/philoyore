@@ -44,8 +44,7 @@ class Corpus:
     def __delitem__(self, key):
         deleted = self.streams[key]
         del self.streams[key]
-        if self.names is not None:
-            del self.names[key]
+        del self.names[key]
         if isinstance(delete, list):
             for d in deleted:
                 self.total -= d
@@ -55,8 +54,7 @@ class Corpus:
         return iter(self.streams)
     def append(self, stream, name = None):
         self.streams.append(stream)
-        if self.names is not None:
-            self.names.append(name)
+        self.names.append(name)
         self.total += stream
     def __add__(self, other):
         return Corpus(self.streams + other.streams, 
