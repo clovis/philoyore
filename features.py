@@ -21,7 +21,7 @@ import philoyore.util as putil
 import scipy.spatial.distance as dist
 import philoyore.dist as pdist
 
-# A FeatureSet, like a StreamSet, is a collection of objects representing the
+# A FeatureSet, like a Corpus, is a collection of objects representing the
 # frequencies of features in streams; however, the feature set is a sequence
 # of "feature vectors", which are vectors representing frequencies of particular
 # features. This is good because these are easier to deal with mathematically.
@@ -40,31 +40,31 @@ import philoyore.dist as pdist
 #               the normalize() method when this attribute is True, the 
 #               normalization will be skipped. 
 # - refs: This is an array that bridges the gap between the FeatureSet and
-#         the StreamSet the FeatureSet is derived from. The length of this
+#         the Corpus the FeatureSet is derived from. The length of this
 #         list is the length of the feature_vecs list; if refs[i] = j, that
 #         tells you that the feature vector i corresponds to the stream j in
-#         the StreamSet that derived this FeatureSet. (There is no way to
+#         the Corpus that derived this FeatureSet. (There is no way to
 #         remove streams from the FeatureSet for now, so this attribute is
 #         useless in the meantime.)
 # - total: The sum of all the feature vectors, which is commonly needed 
 #          information for a number of operations. This is a cached value:
 #          it may be None if the total has not been computed by the library.
 # TODO: Look at strategies for reducing the number of streams in a feature
-#       set (or maybe that should be done at the StreamSet level?)
+#       set (or maybe that should be done at the Corpus level?)
 class FeatureSet:
-    # The initializer is a StreamSet; command-line arguments are also accepted
+    # The initializer is a Corpus; command-line arguments are also accepted
     # that can be used to perform certain operations at the time of 
     # instantiation.
-    def __init__(self, streamset, **kwargs):
-        self.id_to_feature = list(k for k in streamset.total)
+    def __init__(self, corpus, **kwargs):
+        self.id_to_feature = list(k for k in corpus.total)
         self.feature_to_id = { v : k for k, v in enumerate(self.id_to_feature) }
-        self.feature_vecs = np.zeros((len(streamset), len(self.id_to_feature)))
+        self.feature_vecs = np.zeros((len(corpus), len(self.id_to_feature)))
         for i in range(len(self)):
-            for feature in streamset[i]:
-                self.feature_vecs[i][self.feature_to_id[feature]] = \
-                    streamset[i][feature]
+            for feature in corpus[i]:
+                index = self.feature_to_id[feature]
+                self.feature_vecs[i][index] = corpus[i][feature]
         self.normalized = False
-        self.refs = list(range(len(streamset)))
+        self.refs = list(range(len(corpus)))
         self.total = None
         self.process(kwargs)
 

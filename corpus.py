@@ -19,14 +19,14 @@ import collections
 from philoyore.io import words, FilelikeString
 from philoyore.features import FeatureSet
 
-# A StreamSet represents a collection of "streams", a "stream" being data from
+# A Corpus represents a collection of "streams", a "stream" being data from
 # some input source. The input source is "tokenized" in some way so that the
 # input stream is converted into a collection of feature-count pairs, where a
 # "feature" is usually a word, lemma, n-gram, n-lemma, and so on and so forth.
 # The stream set can be manipulated at a high level by adding or removing
 # streams from it; we use the collections.Counter object in the Python standard
 # library to make this rather easy.
-class StreamSet:
+class Corpus:
     # The initializer accepts a list of `streams` which are used to populate the
     # streamset. Other constructor functions in this module can be used
     # to populate StreamSets in different ways. 
@@ -59,12 +59,12 @@ class StreamSet:
             self.names.append(name)
         self.total += stream
     def __add__(self, other):
-        return StreamSet(self.streams + other.streams, 
-                         names = self.names + other.names)
+        return Corpus(self.streams + other.streams, 
+                      names = self.names + other.names)
     def features(self, **kwargs):
         return FeatureSet(self, **kwargs)
     def clone(self):
-        return StreamSet(self.streams[:], names = self.names[:])
+        return Corpus(self.streams[:], names = self.names[:])
 
 def stream_from_filename(fname, streamfn = words, **kwargs):
     f = open(fname, 'r')
@@ -79,29 +79,29 @@ def stream_from_string(s, streamfn = words, **kwargs):
 def stream_from_dict(d):
     return collections.Counter(d)
 
-def set_from_filenames(fnames, streamfn = words, **kwargs):
-    return StreamSet([stream_from_filename(f, streamfn, **kwargs) \
+def corpus_from_filenames(fnames, streamfn = words, **kwargs):
+    return Corpus([stream_from_filename(f, streamfn, **kwargs) \
                           for f in fnames], names = fnames)
 
-def set_from_files(fs, streamfn = words, **kwargs):
+def corpus_from_files(fs, streamfn = words, **kwargs):
     def getname(f):
         try:
             name = f.name
         except AttributeError:
             name = None
         return name
-    return StreamSet([stream_from_file(f, streamfn, **kwargs) for f in fs],
+    return Corpus([stream_from_file(f, streamfn, **kwargs) for f in fs],
                      names = [getname(f) for f in fs])
 
-def set_from_strings(ss, streamfn = words, **kwargs):
+def corpus_from_strings(ss, streamfn = words, **kwargs):
     cutlen = 15
     def processword(s):
         if len(s) <= cutlen:
             return s
         else:
             return s[0:15] + '...'
-    return StreamSet([stream_from_string(s, streamfn, **kwargs) for s in ss],
+    return Corpus([stream_from_string(s, streamfn, **kwargs) for s in ss],
                      names = [processword(s) for s in ss])
 
-def set_from_dicts(ds):
-    return StreamSet([stream_from_dict(d) for d in ds])
+def corpus_from_dicts(ds):
+    return Corpus([stream_from_dict(d) for d in ds])
