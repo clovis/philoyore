@@ -23,7 +23,7 @@ import philoyore.dist as pdist
 import copy
 
 # A FeatureSet, like a Corpus, is a collection of objects representing the
-# frequencies of features in streams; however, the feature set is a sequence
+# frequencies of features in documents; however, the feature set is a sequence
 # of "feature vectors", which are vectors representing frequencies of particular
 # features. This is good because these are easier to deal with mathematically.
 # The object has a number of attributes:
@@ -37,14 +37,14 @@ import copy
 # - refs: This is an array that bridges the gap between the FeatureSet and
 #         the Corpus the FeatureSet is derived from. The length of this
 #         list is the length of the feature_vecs list; if refs[i] = j, that
-#         tells you that the feature vector i corresponds to the stream j in
+#         tells you that the feature vector i corresponds to the document j in
 #         the Corpus that derived this FeatureSet. (There is no way to
-#         remove streams from the FeatureSet for now, so this attribute is
+#         remove documents from the FeatureSet for now, so this attribute is
 #         useless in the meantime.)
 # - total: The sum of all the feature vectors, which is commonly needed 
 #          information for a number of operations. This is a cached value:
 #          it may be None if the total has not been computed by the library.
-# TODO: Look at strategies for reducing the number of streams in a feature
+# TODO: Look at strategies for reducing the number of docs in a feature
 #       set (or maybe that should be done at the Corpus level?)
 class FeatureSet:
     # The initializer is a Corpus; command-line arguments are also accepted
