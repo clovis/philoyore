@@ -146,7 +146,7 @@ class FeatureSet:
     # scipy.spatial.distance module). The string strategy is fastest if you
     # can find what you need there!
     def dist(self, i1, i2, alg = 'euclidean'):
-        algfn = putil.distance(alg)
+        algfn = pdist.distance(alg)
         return algfn(self[i1], self[i2])
 
     # Find the pairwise distance between all vectors whose indices are in the
