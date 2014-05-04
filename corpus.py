@@ -18,6 +18,7 @@
 import collections
 from philoyore.io import words, FilelikeString
 from philoyore.features import FeatureSet
+from philoyore.doc import Document
 
 # A Corpus represents a collection of "documents", a "document" being data from
 # some input source. The input source is "tokenized" in some way so that the
@@ -34,7 +35,7 @@ class Corpus:
         if len(docs) <= 0:
             raise RuntimeError, "The input document list must not be empty"
         self.docs = docs
-        self.total = sum(docs, collections.Counter())
+        self.total = sum(docs, Document())
     def __len__(self):
         return len(self.docs)
     def __getitem__(self, key):
@@ -58,35 +59,21 @@ class Corpus:
         return FeatureSet(self, **kwargs)
     def clone(self):
         return Corpus(self.docs[:])
-
-def doc_from_filename(fname, streamfn = words, **kwargs):
-    f = open(fname, 'r')
-    return doc_from_file(f, streamfn, **kwargs)
-
-def doc_from_file(f, streamfn = words, **kwargs):
-    return collections.Counter(streamfn(f, **kwargs))
-
-def doc_from_string(s, streamfn = words, **kwargs):
-    return doc_from_file(FilelikeString(s), streamfn, **kwargs)
-
-def doc_from_dict(d):
-    return collections.Counter(d)
-
-def doc_from_stream(s):
-    return collections.Counter(s)
-
-def corpus_from_filenames(fnames, streamfn = words, **kwargs):
-    return Corpus([doc_from_filename(f, streamfn, **kwargs) \
-                          for f in fnames])
-
-def corpus_from_files(fs, streamfn = words, **kwargs):
-    return Corpus([doc_from_file(f, streamfn, **kwargs) for f in fs])
-
-def corpus_from_strings(ss, streamfn = words, **kwargs):
-    return Corpus([doc_from_string(s, streamfn, **kwargs) for s in ss])
-
-def corpus_from_dicts(ds):
-    return Corpus([doc_from_dict(d) for d in ds])
-
-def corpus_from_streams(ss):
-    return Corpus([doc_from_stream(s) for s in ss])
+    @staticmethod
+    def from_filenames(fnames, streamfn = words, info = None, **kwargs):
+        info = info if info is not None else fnames
+        return Corpus([Document.from_filename(fname, streamfn = streamfn, 
+                                              info = i, **kwargs) \
+                           for fname, i in zip(fnames, info)])
+    @staticmethod
+    def from_files(fs, streamfn = words, info = None, **kwargs):
+        info = info if info is not None else [f.name for f in fs]
+        return Corpus([Document.from_file(f, streamfn = streamfn, 
+                                          info = i, **kwargs) \
+                           for f, i in zip(fs, info)])
+    @staticmethod
+    def from_strings(ss, streamfn = words, info = None, **kwargs):
+        info = info if info is not None else [s[0:15] for s in ss]
+        return Corpus([Document.from_string(s, streamfn = streamfn, 
+                                            info = i, **kwargs) \
+                           for s, i in zip(ss, info)])
