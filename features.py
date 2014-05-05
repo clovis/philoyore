@@ -39,13 +39,6 @@ import itertools
 #           of integers; each sequence are the indices of vectors in that
 #           group. This can be managed by the user with the add_group and
 #           delete_group methods.
-# - refs: This is an array that bridges the gap between the FeatureSet and
-#         the Corpus the FeatureSet is derived from. The length of this
-#         list is the length of the feature_vecs list; if refs[i] = j, that
-#         tells you that the feature vector i corresponds to the document j in
-#         the Corpus that derived this FeatureSet. (There is no way to
-#         remove documents from the FeatureSet for now, so this attribute is
-#         useless in the meantime.)
 # - total: The sum of all the feature vectors, which is commonly needed 
 #          information for a number of operations. This is a cached value:
 #          it may be None if the total has not been computed by the library.
@@ -61,7 +54,6 @@ class FeatureSet:
             for feature in corpus[i]:
                 index = self.feature_to_id[feature]
                 self.feature_vecs[i][index] = corpus[i][feature]
-        self.refs = list(range(len(corpus)))
         self.clear_cache()
         self.groups = {}
         self.process(**kwargs)
