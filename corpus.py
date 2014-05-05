@@ -17,7 +17,7 @@
 
 import collections
 from philoyore.io import words, FilelikeString
-from philoyore.features import FeatureSet
+from philoyore.vecs import VectorSet
 from philoyore.doc import Document
 
 # A Corpus represents a collection of "documents", a "document" being data from
@@ -56,7 +56,7 @@ class Corpus:
     def clone(self):
         return Corpus(self.docs[:])
     def features(self, **kwargs):
-        return FeatureSet(self, **kwargs)
+        return VectorSet(self, **kwargs)
     def filter(self, fn):
         self.docs = filter(fn, self.docs)
         self.total = sum(self.docs, Document())

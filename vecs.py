@@ -23,8 +23,8 @@ import philoyore.dist as pdist
 import copy
 import itertools
 
-# A FeatureSet, like a Corpus, is a collection of objects representing the
-# frequencies of features in documents; however, the feature set is a sequence
+# A VectorSet, like a Corpus, is a collection of objects representing the
+# frequencies of features in documents; however, the vectors set is a sequence
 # of "feature vectors", which are vectors representing frequencies of particular
 # features. This is good because these are easier to deal with mathematically.
 # The object has a number of attributes:
@@ -33,22 +33,25 @@ import itertools
 #                  that element of the feature vector represents).
 # - feature_to_id: A dictionary that performs the opposite operation as the 
 #                  above attribute; it maps features to their feature indices.
-# - feature_vecs: The list of feature vectors proper. The feature vectors
-#                 are just numpy arrays.
+# - feature_vecs: The feature vectors proper. This is a 2D numpy array.
 # - groups: A hash that maps group id's (supplied by the user) to sequences
 #           of integers; each sequence are the indices of vectors in that
 #           group. This can be managed by the user with the add_group and
 #           delete_group methods.
+# - props: A vector yielding the document frequency of each feature. This
+#          is a cached value that may be None if the total has not been
+#          computed by the library.
 # - total: The sum of all the feature vectors, which is commonly needed 
 #          information for a number of operations. This is a cached value:
 #          it may be None if the total has not been computed by the library.
-class FeatureSet:
+class VectorSet:
     # The initializer is a Corpus; command-line arguments are also accepted
     # that can be used to perform certain operations at the time of 
     # instantiation.
     def __init__(self, corpus, **kwargs):
         self.id_to_feature = list(k for k in corpus.total)
         self.feature_to_id = { v : k for k, v in enumerate(self.id_to_feature) }
+        # TODO: feature_vecs should be a sparse matrix
         self.feature_vecs = np.zeros((len(corpus), len(self.id_to_feature)))
         for i in range(len(self)):
             for feature in corpus[i]:
@@ -70,18 +73,18 @@ class FeatureSet:
         new.feature_vecs = np.copy(new.feature_vecs)
         return new
 
-    # Create a FeatureSet from the given set of corpora. This can be one of
+    # Create a VectorSet from the given set of corpora. This can be one of
     # two things:
     # 1) Some iterable yielding a sequence of Corpus objects (probably a list);
     #    or
     # 2) A hash mapping group names to Corpus objects. 
-    # In both cases groups will be created to representing each corpus.
+    # In both cases groups will be created to represent each corpus.
     @staticmethod
     def from_corpora(corpora, **kwargs):
         import philoyore.corpus as pcorpus
         if isinstance(corpora, dict):
             bigcorpus = sum(corpora.values(), pcorpus.Corpus())
-            fs = FeatureSet(bigcorpus, **kwargs)
+            fs = VectorSet(bigcorpus, **kwargs)
             prev = 0
             nxt = 0
             for key, corpus in corpora.items():
@@ -90,7 +93,7 @@ class FeatureSet:
                 prev = nxt
         else:
             bigcorpus = sum(corpora, pcorpus.Corpus())
-            fs = FeatureSet(bigcorpus, **kwargs)
+            fs = VectorSet(bigcorpus, **kwargs)
             prev = 0
             nxt = 0
             i = 0
