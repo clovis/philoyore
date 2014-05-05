@@ -21,6 +21,7 @@ import philoyore.util as putil
 import scipy.spatial.distance as dist
 import philoyore.dist as pdist
 import copy
+import itertools
 
 # A FeatureSet, like a Corpus, is a collection of objects representing the
 # frequencies of features in documents; however, the feature set is a sequence
@@ -34,6 +35,10 @@ import copy
 #                  above attribute; it maps features to their feature indices.
 # - feature_vecs: The list of feature vectors proper. The feature vectors
 #                 are just numpy arrays.
+# - groups: A hash that maps group id's (supplied by the user) to sequences
+#           of integers; each sequence are the indices of vectors in that
+#           group. This can be managed by the user with the add_group and
+#           delete_group methods.
 # - refs: This is an array that bridges the gap between the FeatureSet and
 #         the Corpus the FeatureSet is derived from. The length of this
 #         list is the length of the feature_vecs list; if refs[i] = j, that
@@ -58,7 +63,8 @@ class FeatureSet:
                 self.feature_vecs[i][index] = corpus[i][feature]
         self.refs = list(range(len(corpus)))
         self.clear_cache()
-        self.process(kwargs)
+        self.groups = {}
+        self.process(**kwargs)
 
     def __len__(self):
         return len(self.feature_vecs)
@@ -71,6 +77,54 @@ class FeatureSet:
         new = copy.copy(self)
         new.feature_vecs = np.copy(new.feature_vecs)
         return new
+
+    # Create a FeatureSet from the given set of corpora. This can be one of
+    # two things:
+    # 1) Some iterable yielding a sequence of Corpus objects (probably a list);
+    #    or
+    # 2) A hash mapping group names to Corpus objects. 
+    # In both cases groups will be created to representing each corpus.
+    @staticmethod
+    def from_corpora(corpora, **kwargs):
+        import philoyore.corpus as pcorpus
+        if isinstance(corpora, dict):
+            bigcorpus = sum(corpora.values(), pcorpus.Corpus())
+            fs = FeatureSet(bigcorpus, **kwargs)
+            prev = 0
+            nxt = 0
+            for key, corpus in corpora.items():
+                nxt += len(corpus)
+                fs.add_group(key, range(prev,nxt))
+                prev = nxt
+        else:
+            bigcorpus = sum(corpora, pcorpus.Corpus())
+            fs = FeatureSet(bigcorpus, **kwargs)
+            prev = 0
+            nxt = 0
+            i = 0
+            for corpus in corpora:
+                nxt += len(corpus)
+                fs.add_group(i, range(prev,nxt))
+                prev = nxt
+                i += 1
+        return fs
+        
+    # Add a group with the given key
+    def add_group(self, key, l):
+        try:
+            self.groups[key]
+            raise RuntimeError,  "Key " + str(key) + " is already a group"
+        except KeyError:
+            self.groups[key] = l
+    # Delete the group with the given key
+    def delete_group(self, key):
+        try:
+            del self.groups[key]
+        except KeyError:
+            raise RuntimeError, "No such group with key " + str(key) + " exists"
+    # Find the group with the given key
+    def group(self, key):
+        return self.groups[key]
 
     # A catch-all method for reducing features in a dataset. The argument is
     # a dictionary of "options" which allows the caller to choose how to

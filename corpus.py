@@ -31,9 +31,7 @@ class Corpus:
     # The initializer accepts a list of `documents` which are used to populate 
     # the object. Other constructor functions in this module can be used
     # to populate Corpora in different ways.
-    def __init__(self, docs):
-        if len(docs) <= 0:
-            raise RuntimeError, "The input document list must not be empty"
+    def __init__(self, docs = []):
         self.docs = docs
         self.total = sum(docs, Document())
     def __add__(self, other):
