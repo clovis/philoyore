@@ -18,6 +18,7 @@
 from sklearn.feature_extraction.text import TfidfVectorizer, CountVectorizer, HashingVectorizer, TfidfTransformer
 import sklearn.metrics.pairwise as dist
 import sklearn.preprocessing as pre
+from sklearn.neighbors import KNeighborsClassifier
 import numpy as np
 import scipy as sp
 
@@ -77,18 +78,18 @@ class Corpus:
         self.vecs = self.vecs.tocsr()
         # Scale if we need to
         self.vecs /= self.vecs.max()
-        self.vecs *= 1000.0
         # Load up our subcorpora
-        self.subcorpora_hash = {}
         self.subcorpora_indices = {}
         index = 0
         for i, group in enumerate(groups):
             self.subcorpora_indices[i] = np.array(range(index, 
                                                         index + len(group)))
-            self.subcorpora_hash[i] = self.vecs[self.subcorpora_indices[i]]
             index += len(group)
-    def subcorpus(self, key):
-        return self.subcorpora_hash[key]
+    def get_subcorpus(self, key):
+        return self.vecs[self.subcorpora_indices[key]]
+    def get_subcorpora(self, keys):
+        return self.vecs[reduce(lambda x, y: np.concatenate((x,y)), 
+                                [self.subcorpora_indices[key] for key in keys])]
     # The input `group` is a list of 2-tuples of the following form:
     # (SUBCORPUSKEY, INDEX)
     # The input `key` parameter is the key that will be tied to this group, 
@@ -98,22 +99,33 @@ class Corpus:
     # call:
     # corpus.add_subcorpus('new', [('a', 0), ('b', 0), ('c', 0)])
     def add_subcorpus(self, key, group):
-        a = [self.subcorpora_indices[subkey][ind] for subkey, ind in group]
-        self.subcorpora_hash[key] = self.vecs[a]
+        self.subcorpora_indices[key] = \
+            np.array([self.subcorpora_indices[sk][i] for sk, i in group])
     def del_subcorpus(self, key):
-        del self.subcorpora_hash[key]
+        del self.subcorpora_indices[key]
     # Return a list of all the subcorpus keys.
-    def subcorpora(self):
-        return self.subcorpora_hash.keys()
+    def subcorpora_list(self):
+        return self.subcorpora_indices.keys()
     def features(self):
         return self.vectorizer.get_feature_names()
     def feature_idx(self, feature):
         return self.vectorizer.vocabulary_.get(feature)
-    # X_subcorp and Y_subcorp should be subcorpus keys.
+    # X_subcorp and Y_subcorp should be subcorpus keys. Returns the distance
+    # matrix corresponding to the given parameters; this function merely
+    # calls the pairwise_distances function provided by scikit-learn.
     def distance(self, X_subcorp = 0, Y_subcorp = None, n_jobs = -1, **kwargs):
-        X = self.subcorpus(X_subcorp)
-        Y = None if Y_subcorp is None else self.subcorpus(Y_subcorp)
+        X = self.get_subcorpus(X_subcorp)
+        Y = None if Y_subcorp is None else self.get_subcorpus(Y_subcorp)
         return dist.pairwise_distances(X = X, Y = Y, **kwargs)
+    # Returns a KNeighborsClassifier object from the scikit-learn library.
+    # The `corpora` parameter should be a list of subcorpora keys that will
+    # constitute the labels of the examples.
+    def kneighbors(self, subcorpora, **kwargs):
+        neigh = KNeighborsClassifier(**kwargs)
+        X = self.get_subcorpora(subcorpora)
+        y = sum([[k]*len(self.subcorpora_indices[k]) for k in subcorpora], [])
+        neigh.fit(X = X, y = y)
+        return neigh
 
 # Convert a list of files to a corpus with one subcorpus.
 def from_files(fs, **kwargs):
