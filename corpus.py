@@ -22,6 +22,7 @@ from sklearn.neighbors import KNeighborsClassifier
 from sklearn.svm import SVC
 from sklearn.naive_bayes import GaussianNB, MultinomialNB, BernoulliNB
 from sklearn.tree import DecisionTreeClassifier
+from sklearn.cluster import KMeans, SpectralClustering, Ward, DBSCAN
 import numpy as np
 import scipy as sp
 
@@ -120,6 +121,9 @@ class Corpus:
         X = self.get_subcorpus(X_subcorp)
         Y = None if Y_subcorp is None else self.get_subcorpus(Y_subcorp)
         return dist.pairwise_distances(X = X, Y = Y, **kwargs)
+    # Classify the text using the given classifier function to generate
+    # the classifier. This is a utility method used by the actual user-facing
+    # classifier functions and is not meant to be called by the user directly.
     def classify(self, subcorpora, classifier_fn, **kwargs):
         classifier = classifier_fn(**kwargs)
         X = self.get_subcorpora(subcorpora)
@@ -129,7 +133,6 @@ class Corpus:
     # Returns a KNeighborsClassifier object from the scikit-learn library.
     # The `corpora` parameter should be a list of subcorpora keys that will
     # constitute the labels of the examples.
-    # TODO: Maybe this should be parallelized
     def kneighbors(self, subcorpora, **kwargs):
         return self.classify(subcorpora, KNeighborsClassifier, **kwargs)
     # Returns an SVM classifier.
@@ -147,8 +150,24 @@ class Corpus:
         else:
             raise RuntimeError, 'Unknown Bayesian strategy ' + name
         return self.classify(subcorpora, classifier, **kwargs)
+    # Returns a decision tree classifier.
     def decision_tree(self, subcorpora, **kwargs):
         return self.classiy(subcorpora, DecisionTreeClassifier, **kwargs)
+    # Perform clustering; return both the clustering object as well as the
+    # predicted labels for all of the documents in the given subcorpus.
+    def cluster(self, subcorpus, cluster_fn, **kwargs):
+        cluster = cluster_fn(**kwargs)
+        X = self.get_subcorpus(subcorpus)
+        labels = cluster.fit_predict(X)
+        return (cluster, labels)
+    def kmeans(self, subcorpus, **kwargs):
+        return self.cluster(subcorpus, KMeans, n_jobs = -1, **kwargs)
+    def spectral(self, subcorpus, **kwargs):
+        return self.cluster(subcorpus, SpectralClustering, **kwargs)
+    def hierarchical(self, subcorpus, **kwargs):
+        return self.cluster(subcorpus, Ward, **kwargs)
+    def dbscan(self, subcorpus, **kwargs):
+        return self.cluster(subcorpus, DBSCAN, **kwargs)
         
 
 # Convert a list of files to a corpus with one subcorpus.
