@@ -21,6 +21,7 @@ import sklearn.preprocessing as pre
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.svm import SVC
 from sklearn.naive_bayes import GaussianNB, MultinomialNB, BernoulliNB
+from sklearn.tree import DecisionTreeClassifier
 import numpy as np
 import scipy as sp
 
@@ -119,23 +120,21 @@ class Corpus:
         X = self.get_subcorpus(X_subcorp)
         Y = None if Y_subcorp is None else self.get_subcorpus(Y_subcorp)
         return dist.pairwise_distances(X = X, Y = Y, **kwargs)
+    def classify(self, subcorpora, classifier_fn, **kwargs):
+        classifier = classifier_fn(**kwargs)
+        X = self.get_subcorpora(subcorpora)
+        y = sum([[k]*len(self.subcorpora_indices[k]) for k in subcorpora], [])
+        classifier.fit(X = X, y = y)
+        return classifier
     # Returns a KNeighborsClassifier object from the scikit-learn library.
     # The `corpora` parameter should be a list of subcorpora keys that will
     # constitute the labels of the examples.
     # TODO: Maybe this should be parallelized
     def kneighbors(self, subcorpora, **kwargs):
-        neigh = KNeighborsClassifier(**kwargs)
-        X = self.get_subcorpora(subcorpora)
-        y = sum([[k]*len(self.subcorpora_indices[k]) for k in subcorpora], [])
-        neigh.fit(X = X, y = y)
-        return neigh
+        return self.classify(subcorpora, KNeighborsClassifier, **kwargs)
     # Returns an SVM classifier.
     def svm(self, subcorpora, **kwargs):
-        classifier = SVC(**kwargs)
-        X = self.get_subcorpora(subcorpora)
-        y = sum([[k]*len(self.subcorpora_indices[k]) for k in subcorpora], [])
-        classifier.fit(X = X, y = y)
-        return classifier
+        return self.classify(subcorpora, SVC, **kwargs)
     # Returns a naive Bayesian classifier. `name` should one of 'gaussian', 
     # 'multinomial', or 'bernoulli'.
     def naive_bayes(self, subcorpora, name = 'gaussian', **kwargs):
@@ -147,10 +146,9 @@ class Corpus:
             classifier = BernoulliNB(**kwargs)
         else:
             raise RuntimeError, 'Unknown Bayesian strategy ' + name
-        X = self.get_subcorpora(subcorpora)
-        y = sum([[k]*len(self.subcorpora_indices[k]) for k in subcorpora], [])
-        classifier.fit(X = X, y = y)
-        return classifier
+        return self.classify(subcorpora, classifier, **kwargs)
+    def decision_tree(self, subcorpora, **kwargs):
+        return self.classiy(subcorpora, DecisionTreeClassifier, **kwargs)
         
 
 # Convert a list of files to a corpus with one subcorpus.
