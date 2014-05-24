@@ -168,6 +168,8 @@ class Corpus:
         return self.cluster(subcorpus, Ward, **kwargs)
     def dbscan(self, subcorpus, **kwargs):
         return self.cluster(subcorpus, DBSCAN, **kwargs)
+    # TODO Dimensionality reduction
+    # TODO Add gensim support
         
 
 # Convert a list of files to a corpus with one subcorpus.
