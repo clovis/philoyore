@@ -200,12 +200,13 @@ class Corpus:
         for command in commands:
             try:
                 if isinstance(command, str):
-                    return_values.append(getattr(self, command))
+                    return_values.append(getattr(self, command)())
                 elif len(command) == 2:
-                    return_values.append(getattr(self, command[0]), *command[1])
+                    return_values.append(getattr(self, command[0])(*command[1]))
                 elif len(command) == 3:
-                    return_values.append(getattr(self, command[0]), *command[1],
-                                         **command[2])
+                    return_values.append(getattr(self, 
+                                                 command[0])(*command[1],
+                                                              **command[2]))
                 else:
                     return (return_values, 
                             "Received invalid command " + str(command))
