@@ -17,12 +17,13 @@
 
 from sklearn.feature_extraction.text import TfidfVectorizer, CountVectorizer, HashingVectorizer, TfidfTransformer
 from sklearn.metrics.pairwise import pairwise_distances
-from sklearn.preprocessing import Normalizer
+from sklearn.preprocessing import Normalizer, MinMaxScaler
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.svm import SVC
 from sklearn.naive_bayes import GaussianNB, MultinomialNB, BernoulliNB
 from sklearn.tree import DecisionTreeClassifier
 from sklearn.cluster import KMeans, SpectralClustering, Ward, DBSCAN
+from sklearn.decomposition import TruncatedSVD
 import numpy as np
 import scipy as sp
 import sys
@@ -76,6 +77,7 @@ class Corpus:
                                               **kwargs)
         elif strategy == 'hashingcount' or strategy == 'hashingtf-idf':
             self.feature_names_available = False
+            self.feature_names_unavailable_reason = "hashing vectorization"
             self.vectorizer = HashingVectorizer(input = input, 
                                                 dtype = np.float64, **kwargs)
         elif strategy == 'tf-idf':
@@ -92,6 +94,7 @@ class Corpus:
         # Convert to CSR if not in CSR already
         if self.vecs.format != 'csr':
             self.vecs = self.vecs.tocsr()
+        self.sparse = True
         # ======= SUBCORPORA CONSTRUCTION =======
         # Besides vectorizing and providing light wrappers around computational
         # methods from other scientific libraries, this class takes care of
@@ -114,15 +117,22 @@ class Corpus:
         # convert it to LIL format (which isn't inefficient in this operation),
         # and divide each row (column in the original matrix) by the row's
         # sum before transposing and converting back to CSR. 
+        # However, if the matrix is not sparse, we don't have to worry about
+        # this and can simply use one of Scikit's utility methods.
         # TODO: Maybe look at profiling to ensure that this strategy really
         # is the least expensive one.
-        self.vecs = self.vecs.tolil()
-        self.vecs = self.vecs.transpose()
-        num_features, _ = self.vecs.shape
-        for i in range(num_features):
-            self.vecs[i] /= self.vecs[i].sum()
-        self.vecs = self.vecs.transpose()
-        self.vecs = self.vecs.tocsr()
+        if self.sparse:
+            self.vecs = self.vecs.tolil()
+            self.vecs = self.vecs.transpose()
+            num_features, _ = self.vecs.shape
+            for i in range(num_features):
+                self.vecs[i] /= self.vecs[i].sum()
+            self.vecs = self.vecs.transpose()
+            self.vecs = self.vecs.tocsr()
+        else:
+            mms = MinMaxScaler(copy = False)
+            self.vecs = mms.fit_transform(self.vecs)
+            
     # ===============================================
     # =========== WORKING WITH SUBCORPORA ===========
     # ===============================================
@@ -148,9 +158,17 @@ class Corpus:
     def subcorpora_list(self):
         return self.subcorpora_indices.keys()
     def features(self):
-        return self.vectorizer.get_feature_names()
+        if self.feature_names_available:
+            return self.vectorizer.get_feature_names()
+        else:
+            raise RuntimeError, "Features not available due to " + \
+                self.feature_names_unavailable_reason
     def feature_idx(self, feature):
-        return self.vectorizer.vocabulary_.get(feature)
+        if self.feature_names_available:
+            return self.vectorizer.vocabulary_.get(feature)
+        else:
+            raise RuntimeError, "Features not available due to " + \
+                self.feature_names_unavailable_reason
     # ==================================
     # =========== ALGORITHMS ===========
     # ==================================
@@ -221,7 +239,7 @@ class Corpus:
     def kneighbors(self, subcorpora, **kwargs):
         return self.classify(subcorpora, KNeighborsClassifier, **kwargs)
     # Returns an SVM classifier.
-    def svm(self, subcorpora, **kwargs):
+    def SVM(self, subcorpora, **kwargs):
         return self.classify(subcorpora, SVC, **kwargs)
     # Returns a naive Bayesian classifier. `name` should one of 'gaussian', 
     # 'multinomial', or 'bernoulli'.
@@ -255,7 +273,24 @@ class Corpus:
     def dbscan(self, subcorpus, **kwargs):
         return self.cluster(subcorpus, DBSCAN, **kwargs)
     # ======= LSA =======
-    # TODO Dimensionality reduction
+    # Performs LSA on the set of feature vectors, mapping to a semantic space 
+    # of lower dimensionality. This is useful to increase the efficiency of 
+    # some algorithms, though it comes with an important drawback: in mapping
+    # to a space of lower dimensionality, we lose information about the 
+    # original feature space itself. This is reflected in that the
+    # feature_names_available attribute of the corpus object will be set to
+    # False after this method is run. If you would like to keep the original
+    # vectors with their feature name mappings, make a copy of the corpus 
+    # object.
+    # Keyword arguments are passed directly to the ScikitLearn TruncatedSVD
+    # constructor.
+    def LSA(self, **kwargs):
+        svd = TruncatedSVD(**kwargs)
+        self.vecs = svd.fit_transform(self.vecs)
+        self.feature_names_available = False
+        self.feature_names_unavailable_reason = "LSA"
+        return LSA
+
     # TODO Add gensim support
         
 
