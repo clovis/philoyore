@@ -61,7 +61,11 @@ class Corpus:
     def __init__(self, groups, strategy = 'count', input = 'filename', 
                  scale = True, **kwargs):
         all_groups = sum(groups, [])
-        # Make our vectorizer
+        # ======= VECTORIZING =======
+        # We vectorize by using the vectorizer utility classes provided in 
+        # Scikit. We use all the default keyword arguments for these vectorizers
+        # by default though the extra keyword arguments from this method will
+        # be passed directly to these constructors.
         if strategy == 'count':
             self.vectorizer = CountVectorizer(input = input, dtype = np.float64,
                                               **kwargs)
@@ -74,21 +78,46 @@ class Corpus:
         else:
             raise RuntimeError, 'Unrecognized vectorization strategy ' + \
                 strategy
-        # Vectorize
         self.vecs = self.vectorizer.fit_transform(all_groups)
-        # Transform if we need to
+        # Tfidf transform if we need to
         if strategy == 'hashingtf-idf':
             self.vecs = TfidfTransformer().fit_transform(self.vecs)
-        self.vecs = self.vecs.tocsr()
-        # Scale if we need to
-        self.vecs /= self.vecs.max()
-        # Load up our subcorpora
+        # ======= SCALING =======
+        if scale:
+            # self.scale() will automatically turn self.vecs into a LIL 
+            # matrix, so we don't have to turn it into CSR before scaling
+            self.scale()
+        else:
+            self.vecs = self.vecs.tocsr()
+        # ======= SUBCORPORA CONSTRUCTION =======
+        # Besides vectorizing and providing light wrappers around computational
+        # methods from other scientific libraries, this class takes care of
+        # subcorpora management for us. These lines of code initialize the
+        # initial set of subcorpora, inferred from the input parameters.
         self.subcorpora_indices = {}
         index = 0
         for i, group in enumerate(groups):
             self.subcorpora_indices[i] = np.array(range(index, 
                                                         index + len(group)))
             index += len(group)
+    def scale(self):
+        # Scaling is an important part of this process: many of our algorithms
+        # require our data to be scaled or otherwise standardized. We 
+        # do this by scaling features to values between [0,1]. This preserves
+        # zero entries in our sparse matrix which is always a desirable 
+        # quality when working with this sort of data.
+        # Scaling is sort of a convoluted process because Scipy/Scikit
+        # doesn't offer a way to do this natively. We transpose the matrix, 
+        # convert it to LIL format (which isn't inefficient in this operation),
+        # and divide each row (column in the original matrix) by the row's
+        # sum before transposing and converting back to CSR. 
+        self.vecs = self.vecs.tolil()
+        self.vecs = self.vecs.transpose()
+        num_features, _ = self.vecs.shape
+        for i in range(num_features):
+            self.vecs[i] /= self.vecs[i].sum()
+        self.vecs = self.vecs.transpose()
+        self.vecs = self.vecs.tocsr()
     def get_subcorpus(self, key):
         return self.vecs[self.subcorpora_indices[key]]
     def get_subcorpora(self, keys):
@@ -152,7 +181,7 @@ class Corpus:
         return self.classify(subcorpora, classifier, **kwargs)
     # Returns a decision tree classifier.
     def decision_tree(self, subcorpora, **kwargs):
-        return self.classiy(subcorpora, DecisionTreeClassifier, **kwargs)
+        return self.classify(subcorpora, DecisionTreeClassifier, **kwargs)
     # Perform clustering; return both the clustering object as well as the
     # predicted labels for all of the documents in the given subcorpus.
     def cluster(self, subcorpus, cluster_fn, **kwargs):
@@ -160,8 +189,8 @@ class Corpus:
         X = self.get_subcorpus(subcorpus)
         labels = cluster.fit_predict(X)
         return (cluster, labels)
-    def kmeans(self, subcorpus, **kwargs):
-        return self.cluster(subcorpus, KMeans, n_jobs = -1, **kwargs)
+    def kmeans(self, subcorpus, n_jobs = -1, **kwargs):
+        return self.cluster(subcorpus, KMeans, n_jobs = n_jobs, **kwargs)
     def spectral(self, subcorpus, **kwargs):
         return self.cluster(subcorpus, SpectralClustering, **kwargs)
     def hierarchical(self, subcorpus, **kwargs):
