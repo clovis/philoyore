@@ -16,8 +16,8 @@
 # ========================================================================
 
 from sklearn.feature_extraction.text import TfidfVectorizer, CountVectorizer, HashingVectorizer, TfidfTransformer
-import sklearn.metrics.pairwise as dist
-import sklearn.preprocessing as pre
+from sklearn.metrics.pairwise import pairwise_distances
+from sklearn.preprocessing import Normalizer
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.svm import SVC
 from sklearn.naive_bayes import GaussianNB, MultinomialNB, BernoulliNB
@@ -25,6 +25,7 @@ from sklearn.tree import DecisionTreeClassifier
 from sklearn.cluster import KMeans, SpectralClustering, Ward, DBSCAN
 import numpy as np
 import scipy as sp
+import sys
 
 # A corpus is a collection of vectorized documents. To construct a corpus,
 # a collection of "documents" must be passed in; these documents will be 
@@ -44,6 +45,9 @@ import scipy as sp
 # That is, a corpus is a collection of sub-corpora, and a sub-corpus is a
 # collection of documents.
 class Corpus:
+    # ==========================================
+    # =========== PREPROCESSING DATA ===========
+    # ==========================================
     # The input `groups` is a Listof(Listof(Document)) (that is, a 
     # Listof(Subcorpus). This corresponds in practice to a
     # Listof(Listof(Filename)). This can be changed by changing the
@@ -59,7 +63,7 @@ class Corpus:
     # groups that were passed in; they will automatically be numbered starting
     # from 0.
     def __init__(self, groups, strategy = 'count', input = 'filename', 
-                 scale = True, **kwargs):
+                 **kwargs):
         all_groups = sum(groups, [])
         # ======= VECTORIZING =======
         # We vectorize by using the vectorizer utility classes provided in 
@@ -67,12 +71,15 @@ class Corpus:
         # by default though the extra keyword arguments from this method will
         # be passed directly to these constructors.
         if strategy == 'count':
+            self.feature_names_available = True
             self.vectorizer = CountVectorizer(input = input, dtype = np.float64,
                                               **kwargs)
         elif strategy == 'hashingcount' or strategy == 'hashingtf-idf':
+            self.feature_names_available = False
             self.vectorizer = HashingVectorizer(input = input, 
                                                 dtype = np.float64, **kwargs)
         elif strategy == 'tf-idf':
+            self.feature_names_available = True
             self.vectorizer = TfidfVectorizer(input = input, dtype = np.float64,
                                               **kwargs)
         else:
@@ -82,12 +89,8 @@ class Corpus:
         # Tfidf transform if we need to
         if strategy == 'hashingtf-idf':
             self.vecs = TfidfTransformer().fit_transform(self.vecs)
-        # ======= SCALING =======
-        if scale:
-            # self.scale() will automatically turn self.vecs into a LIL 
-            # matrix, so we don't have to turn it into CSR before scaling
-            self.scale()
-        else:
+        # Convert to CSR if not in CSR already
+        if self.vecs.format != 'csr':
             self.vecs = self.vecs.tocsr()
         # ======= SUBCORPORA CONSTRUCTION =======
         # Besides vectorizing and providing light wrappers around computational
@@ -111,6 +114,8 @@ class Corpus:
         # convert it to LIL format (which isn't inefficient in this operation),
         # and divide each row (column in the original matrix) by the row's
         # sum before transposing and converting back to CSR. 
+        # TODO: Maybe look at profiling to ensure that this strategy really
+        # is the least expensive one.
         self.vecs = self.vecs.tolil()
         self.vecs = self.vecs.transpose()
         num_features, _ = self.vecs.shape
@@ -118,6 +123,9 @@ class Corpus:
             self.vecs[i] /= self.vecs[i].sum()
         self.vecs = self.vecs.transpose()
         self.vecs = self.vecs.tocsr()
+    # ===============================================
+    # =========== WORKING WITH SUBCORPORA ===========
+    # ===============================================
     def get_subcorpus(self, key):
         return self.vecs[self.subcorpora_indices[key]]
     def get_subcorpora(self, keys):
@@ -143,13 +151,61 @@ class Corpus:
         return self.vectorizer.get_feature_names()
     def feature_idx(self, feature):
         return self.vectorizer.vocabulary_.get(feature)
+    # ==================================
+    # =========== ALGORITHMS ===========
+    # ==================================
+
+    # ======= PIPELINING =======
+    # Often, we find that we want to perform a series of transformations and
+    # computations on a corpus. This function will enable that for us. Call
+    # this method with a list of "commands" as its argument, where a command is:
+    # - either a method name (e.g. 'distance' or 'kneighbors'); or 
+    # - a 2-tuple with a method name (e.g. 'distance' or 'kneighbors')
+    #   and a list of arguments (e.g. [0, 1]); or
+    # - a 3-tuple with a method name, a list of arguments, and a dictionary
+    #   of keyword arguments (e.g. { n_jobs : 10 }). 
+    # This function will run all of the commands in sequence, returning
+    # all the return values as a list. So an example usage of this might be
+    # corpus.pipeline([ 
+    #   ('LSA', [], { n_components : 75 }),
+    #   ('distance', ['a', 'b'], { n_jobs : 10 }),
+    #   ('decision_tree', ['a', 'b', 'c' ])
+    # ])
+    # The function does NOT run commands in parallel (though this will probably
+    # come next); i.e., the list of commands will be run and returned
+    # sequentially.
+    # The return value is a 2-tuple: a list of return values, or a string
+    # describing what went wrong, if anything. None will be in the 2nd spot
+    # of the tuple if nothing went wrong.
+    def pipeline(self, commands):
+        return_values = []
+        for command in commands:
+            try:
+                if isinstance(command, str):
+                    return_values.append(getattr(self, command))
+                elif len(command) == 2:
+                    return_values.append(getattr(self, command[0]), *command[1])
+                elif len(command) == 3:
+                    return_values.append(getattr(self, command[0]), *command[1],
+                                         **command[2])
+                else:
+                    return (return_values, 
+                            "Received invalid command " + str(command))
+            except:
+                return (return_values, 
+                        "Received exception " + sys.exc_info()[1])
+        return return_values
+                    
+                
+    # ======= DISTANCE =======
     # X_subcorp and Y_subcorp should be subcorpus keys. Returns the distance
     # matrix corresponding to the given parameters; this function merely
     # calls the pairwise_distances function provided by scikit-learn.
     def distance(self, X_subcorp = 0, Y_subcorp = None, n_jobs = -1, **kwargs):
         X = self.get_subcorpus(X_subcorp)
         Y = None if Y_subcorp is None else self.get_subcorpus(Y_subcorp)
-        return dist.pairwise_distances(X = X, Y = Y, **kwargs)
+        return pairwise_distances(X = X, Y = Y, **kwargs)
+    # ======= CLASSIFICATION =======
     # Classify the text using the given classifier function to generate
     # the classifier. This is a utility method used by the actual user-facing
     # classifier functions and is not meant to be called by the user directly.
@@ -182,6 +238,7 @@ class Corpus:
     # Returns a decision tree classifier.
     def decision_tree(self, subcorpora, **kwargs):
         return self.classify(subcorpora, DecisionTreeClassifier, **kwargs)
+    # ======= CLUSTERING =======
     # Perform clustering; return both the clustering object as well as the
     # predicted labels for all of the documents in the given subcorpus.
     def cluster(self, subcorpus, cluster_fn, **kwargs):
@@ -197,6 +254,7 @@ class Corpus:
         return self.cluster(subcorpus, Ward, **kwargs)
     def dbscan(self, subcorpus, **kwargs):
         return self.cluster(subcorpus, DBSCAN, **kwargs)
+    # ======= LSA =======
     # TODO Dimensionality reduction
     # TODO Add gensim support
         
